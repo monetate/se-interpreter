@@ -25,6 +25,8 @@ var pathLib = require('path');
 var fs = require('fs');
 var colors = require('colors');
 var sax = require('sax');
+var SauceLabs = require('saucelabs');
+
 
 // Common functionality for assert/verify/waitFor/store step types. Only the code for actually
 // getting the value has to be implemented individually.
@@ -142,6 +144,9 @@ TestRun.prototype.start = function(callback, webDriverToUse) {
         }
         callback(info);
       } else {
+        /* Grab the Session ID from the WebDriver handshake
+         * Sauce uses this as the "Job ID" */
+        testRun.sessionID = testRun.wd.sessionID;
         testRun.wd.setImplicitWaitTimeout((testRun.script.timeoutSeconds || 60) * 1000, function(err) {
           var info2 = { 'success': !err, 'error': err };
           if (testRun.listener && testRun.listener.startTestRun) {
@@ -449,6 +454,88 @@ function getInterpreterListener(testRun) {
   };
 }
 
+function getJenkinsOutputListener (testRun) {
+
+  /** Listener factory to handle post-test Sauce integration */
+  return {
+    'startTestRun': function(testRun, info) {
+      if (info.success) {
+        console.log(testRun.name + ": " + "Starting test " +
+                    "(" + testRun.browserOptions.browserName +") " +
+                    testRun.name);
+      } else {
+        console.log(testRun.name + ": " + "Unable to start test " +
+                    testRun.name + ": " + util.inspect(info.error));
+      }
+    },
+    'endTestRun': function(testRun, info) {
+      var sauceAccount = new SauceLabs({
+          username: testRun.driverOptions.username,
+          password: testRun.driverOptions.accessKey
+      });
+
+      if (info.success) {
+        sauceAccount.updateJob(testRun.sessionID, { passed: true },
+            function (err, res) {
+                if (err) {
+                    console.log(testRun.name + "Error sending test result to Sauce Labs");
+                    console.log(testRun.name + "  Error: " + util.inspect(err));
+                    console.log(testRun.name + "  Response: " + util.inspect(res));
+                }
+            });
+        console.log(testRun.name + ": " + "Test passed");
+      } else {
+        sauceAccount.updateJob(testRun.sessionID, { passed: false },
+            function (err, res) {
+                if (err) {
+                    console.log(testRun.name + "Error sending test result to Sauce Labs");
+                    console.log(testRun.name + "  Error: " + util.inspect(err));
+                    console.log(testRun.name + "  Response: " + util.inspect(res));
+                }
+            });
+        if (info.error) {
+          console.log(testRun.name + ": " + "Test failed: " +
+                      util.inspect(info.error));
+        } else {
+          console.log(testRun.name + ": " + "Test failed ");
+        }
+      }
+    },
+    'startStep': function(testRun, step) {
+      return;
+    },
+    'endStep': function(testRun, step, info) {
+      name = step.step_name ? step.step_name + " " : "";
+      if (info.success) {
+        console.log(testRun.name + ": " + "Success " + name +
+                    JSON.stringify(step));
+      } else {
+        if (info.error) {
+          console.log(testRun.name + ": " + "Failed " + name +
+                      util.inspect(info.error));
+        } else {
+          console.log(testRun.name + ": " + "Failed " + name);
+        }
+      }
+    },
+    'endAllRuns': function(num_runs, successes) {
+      var message = successes + '/' + num_runs +
+                    ' tests ran successfully. Exiting';
+
+      if (num_runs == 0) {
+        message = 'No tests found. Exiting.';
+      } else if (successes == num_runs) {
+        message = message;
+      } else {
+        message = message;
+      }
+
+      console.log(message);
+    }
+  };
+};
+
+
 function parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources) {
   var rawData = fs.readFileSync(path, "UTF-8");
   var data = JSON.parse(subEnvVars(rawData));
@@ -667,6 +754,7 @@ var opt = require('optimist')
   .default('noPrint', false).describe('noPrint', 'no print step output')
   .default('silent', false).describe('silent', 'no non-error output')
   .default('parallel', 1).describe('parallel', 'number of tests to run in parallel')
+  .default('jenkins', false).describe('jenkins', 'produce additional output for Jenkins')
   .describe('dataSource', 'path to data source module')
   .describe('listener', 'path to listener module')
   .describe('executorFactory', 'path to factory for extra type executors')
@@ -746,7 +834,11 @@ if (listener) {
   listenerFactory = function(tr, listenerOptions) { return listener.getInterpreterListener(tr, listenerOptions, exports); };
 } else {
   if (!argv.silent && !argv.quiet) {
-    listenerFactory = getInterpreterListener;
+      if (argv.jenkins) {
+        listenerFactory = getJenkinsOutputListener;
+      } else {
+        listenerFactory = getInterpreterListener;
+      }
   }
 }
 

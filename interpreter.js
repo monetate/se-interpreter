@@ -454,6 +454,14 @@ function getInterpreterListener(testRun) {
   };
 }
 
+function writeJUnitOutputFile(testRun) {
+    var jUnitXML = "<testsuite tests=\"1\" name=\"" + testRun.name + "\">\n" +
+                   "  <testcase classname=\"" + testRun.name + "\" name=\"test\"/>\n" +
+                   "</testsuite>\n";
+    var filepath = jUnitDir + "/" + "TEST-" + testRun.name + ".xml";
+    fs.writeFileSync(filepath, jUnitXML);
+}
+
 function getJenkinsOutputListener (testRun) {
 
   /** Listener factory to handle post-test Sauce integration */
@@ -474,8 +482,10 @@ function getJenkinsOutputListener (testRun) {
           password: testRun.driverOptions.accessKey
       });
 
+      // This is what the Sauce plugin looks for to match Session IDs with
+      // JUnitXML output files
       console.log("SauceOnDemandSessionID=" + testRun.sessionID + " " +
-                  "job-name=" + testRun.name);
+                  "job-name=" + testRun.name + ".test");
 
       if (info.success) {
         sauceAccount.updateJob(testRun.sessionID, { passed: true },
@@ -503,6 +513,8 @@ function getJenkinsOutputListener (testRun) {
           console.log(testRun.name + ": " + "Test failed ");
         }
       }
+
+      writeJUnitOutpuFile(testRun);
     },
     'startStep': function(testRun, step) {
       return;
@@ -766,6 +778,12 @@ var opt = require('optimist')
 
 // Process arguments.
 var argv = opt.argv;
+
+var jUnitDir = 'JUnitOutput';
+if (argv.jenkins && !fs.existsSync(jUnitDir)) {
+    // Make sure JUnitXML output directory exists
+    fs.mkdirSync(jUnitDir);
+}
 
 var numParallelRunners = parseInt(argv.parallel, 10);
 

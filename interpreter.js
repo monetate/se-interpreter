@@ -474,6 +474,9 @@ function getJenkinsOutputListener (testRun) {
           password: testRun.driverOptions.accessKey
       });
 
+      console.log("SauceOnDemandSessionID=" + testRun.sessionID + " " +
+                  "job-name=" + testRun.name);
+
       if (info.success) {
         sauceAccount.updateJob(testRun.sessionID, { passed: true },
             function (err, res) {

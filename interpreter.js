@@ -514,7 +514,7 @@ function getJenkinsOutputListener (testRun) {
         }
       }
 
-      writeJUnitOutpuFile(testRun);
+      writeJUnitOutputFile(testRun);
     },
     'startStep': function(testRun, step) {
       return;

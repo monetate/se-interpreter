@@ -459,7 +459,7 @@ function writeJUnitOutputFile(testRun, info) {
     var closeTestSuiteTag = "</testsuite>\n";
 
     var openTestCaseTag = "  <testcase classname=\"" + testRun.name + "\" name=\"test\">\n";
-    var closeTestSuiteTag = "  </testcase>\n";
+    var closeTestCaseTag = "  </testcase>\n";
 
     var failureTag = '';
     if (!info.success) {

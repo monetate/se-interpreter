@@ -454,10 +454,24 @@ function getInterpreterListener(testRun) {
   };
 }
 
-function writeJUnitOutputFile(testRun) {
-    var jUnitXML = "<testsuite tests=\"1\" name=\"" + testRun.name + "\">\n" +
-                   "  <testcase classname=\"" + testRun.name + "\" name=\"test\"/>\n" +
-                   "</testsuite>\n";
+function writeJUnitOutputFile(testRun, info) {
+    var openTestSuiteTag = "<testsuite tests=\"1\" name=\"" + testRun.name + "\">\n";
+    var closeTestSuiteTag = "</testsuite>\n";
+
+    var openTestCaseTag = "  <testcase classname=\"" + testRun.name + "\" name=\"test\">\n";
+    var closeTestSuiteTag = "  </testcase>\n";
+
+    var failureTag = '';
+    if (!info.success) {
+        failureTag = "    <failure message=\"" + info.error + "\" />\n";
+    }
+
+    var jUnitXML = openTestSuiteTag +
+                     openTestCaseTag +
+                       failureTag +
+                     closeTestCaseTag +
+                   closeTestSuiteTag;
+
     var filepath = jUnitDir + "/" + "TEST-" + testRun.name + ".xml";
     fs.writeFileSync(filepath, jUnitXML);
 }
@@ -482,30 +496,25 @@ function getJenkinsOutputListener (testRun) {
           password: testRun.driverOptions.accessKey
       });
 
-      // This is what the Sauce plugin looks for to match Session IDs with
-      // JUnitXML output files
-      console.log("SauceOnDemandSessionID=" + testRun.sessionID + " " +
-                  "job-name=" + testRun.name + ".test");
-
       if (info.success) {
         sauceAccount.updateJob(testRun.sessionID, { passed: true },
-            function (err, res) {
-                if (err) {
-                    console.log(testRun.name + "Error sending test result to Sauce Labs");
-                    console.log(testRun.name + "  Error: " + util.inspect(err));
-                    console.log(testRun.name + "  Response: " + util.inspect(res));
-                }
-            });
+          function (err, res) {
+            if (err) {
+              console.log(testRun.name + "Error sending test result to Sauce Labs");
+              console.log(testRun.name + "  Error: " + util.inspect(err));
+              console.log(testRun.name + "  Response: " + util.inspect(res));
+            }
+          });
         console.log(testRun.name + ": " + "Test passed");
       } else {
         sauceAccount.updateJob(testRun.sessionID, { passed: false },
-            function (err, res) {
-                if (err) {
-                    console.log(testRun.name + "Error sending test result to Sauce Labs");
-                    console.log(testRun.name + "  Error: " + util.inspect(err));
-                    console.log(testRun.name + "  Response: " + util.inspect(res));
-                }
-            });
+          function (err, res) {
+            if (err) {
+              console.log(testRun.name + "Error sending test result to Sauce Labs");
+              console.log(testRun.name + "  Error: " + util.inspect(err));
+              console.log(testRun.name + "  Response: " + util.inspect(res));
+            }
+          });
         if (info.error) {
           console.log(testRun.name + ": " + "Test failed: " +
                       util.inspect(info.error));
@@ -514,7 +523,12 @@ function getJenkinsOutputListener (testRun) {
         }
       }
 
-      writeJUnitOutputFile(testRun);
+      // This is what the Sauce plugin looks for to match Session IDs with
+      // JUnitXML output files
+      console.log("SauceOnDemandSessionID=" + testRun.sessionID + " " +
+                  "job-name=" + testRun.name + ".test");
+
+      writeJUnitOutputFile(testRun, info);
     },
     'startStep': function(testRun, step) {
       return;

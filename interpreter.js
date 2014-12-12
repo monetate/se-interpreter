@@ -454,16 +454,25 @@ function getInterpreterListener(testRun) {
   };
 }
 
+function xmlescape(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function writeJUnitOutputFile(testRun, info) {
-    var openTestSuiteTag = "<testsuite tests=\"1\" name=\"" + testRun.name + "\">\n";
+    var openTestSuiteTag = "<testsuite tests=\"1\" name=\"" + xmlescape(testRun.name) + "\">\n";
     var closeTestSuiteTag = "</testsuite>\n";
 
-    var openTestCaseTag = "  <testcase classname=\"" + testRun.name + "\" name=\"test\">\n";
+    var openTestCaseTag = "  <testcase classname=\"" + xmlescape(testRun.name) + "\" name=\"test\">\n";
     var closeTestCaseTag = "  </testcase>\n";
 
     var failureTag = '';
     if (!info.success) {
-        failureTag = "    <failure message=\"" + info.error + "\" />\n";
+        failureTag = "    <failure message=\"" + xmlescape(info.error) + "\" />\n";
     }
 
     var jUnitXML = openTestSuiteTag +

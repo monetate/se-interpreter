@@ -147,16 +147,29 @@ TestRun.prototype.start = function(callback, webDriverToUse) {
         /* Grab the Session ID from the WebDriver handshake
          * Sauce uses this as the "Job ID" */
         testRun.sessionID = testRun.wd.sessionID;
-        testRun.wd.setImplicitWaitTimeout((testRun.script.timeoutSeconds || 60) * 1000, function(err) {
-          var info2 = { 'success': !err, 'error': err };
-          if (testRun.listener && testRun.listener.startTestRun) {
-            testRun.listener.startTestRun(testRun, info2);
-          }
-          callback(info2);
-        });
+        setTimeouts(testRun, callback);
       }
     });
   }
+};
+
+var setTimeouts = function(testRun, callback) {
+    timeoutCommands = [
+        testRun.wd.setImplicitWaitTimeout,
+        testRun.wd.setAsyncScriptTimeout,
+        testRun.wd.setPageLoadTimeout,
+        testRun.wd.setCommandTimeout
+    ];
+
+    timeoutCommands.forEach(function (command) {
+        command((testRun.script.timeoutSeconds || 60) * 1000, function(err) {
+          var info = { 'success': !err, 'error': err };
+          if (testRun.listener && testRun.listener.startTestRun) {
+            testRun.listener.startTestRun(testRun, info2);
+          }
+          callback(info);
+        });
+    });
 };
 
 TestRun.prototype.currentStep = function() {

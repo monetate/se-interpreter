@@ -147,29 +147,44 @@ TestRun.prototype.start = function(callback, webDriverToUse) {
         /* Grab the Session ID from the WebDriver handshake
          * Sauce uses this as the "Job ID" */
         testRun.sessionID = testRun.wd.sessionID;
-        setTimeouts(testRun, callback);
+        var info2 = setTimeouts(testRun);
+        if (testRun.listener && testRun.listener.startTestRun) {
+            testRun.listener.startTestRun(testRun, info2);
+        }
+        callback(info2);
       }
     });
   }
 };
 
-var setTimeouts = function(testRun, callback) {
+var setTimeouts = function(testRun) {
     timeoutCommands = [
         testRun.wd.setImplicitWaitTimeout,
         testRun.wd.setAsyncScriptTimeout,
-        testRun.wd.setPageLoadTimeout,
-        testRun.wd.setCommandTimeout
+        testRun.wd.setPageLoadTimeout
     ];
 
+    errList = [];
     timeoutCommands.forEach(function (command) {
-        command((testRun.script.timeoutSeconds || 60) * 1000, function(err) {
-          var info = { 'success': !err, 'error': err };
-          if (testRun.listener && testRun.listener.startTestRun) {
-            testRun.listener.startTestRun(testRun, info2);
-          }
-          callback(info);
-        });
+        command.call(testRun.wd, (testRun.script.timeoutSeconds || 60) * 1000,
+          function(err) {
+              errList.push(err);
+              var info = { 'success': !err, 'error': err };
+          });
     });
+
+    var successOverall = true, errOverall = '';
+    errList.some(function (err) {
+        if (err) {
+            success = false;
+            return true;
+        }
+    });
+    errList.forEach(function (err) {
+        if (err) {errOverall += ' ' + err;}
+    });
+
+    return { 'success' : successOverall, 'error': errOverall };
 };
 
 TestRun.prototype.currentStep = function() {

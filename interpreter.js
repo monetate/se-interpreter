@@ -458,7 +458,7 @@ function getInterpreterListener(testRun) {
     'endStep': function(testRun, step, info) {
       name = step.step_name ? step.step_name + " " : "";
       if (info.success) {
-        console.log(testRun.name + ": " + "Success ".green + name + JSON.stringify(step).grey);
+        console.log(testRun.name + ": " + "Success ".green + name + JSON.stringify(step));
       } else {
         if (info.error) {
           console.log(testRun.name + ": " + "Failed ".red + name + util.inspect(info.error));

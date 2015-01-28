@@ -626,14 +626,19 @@ function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory,
         'driverOptions': driverOptions
       }];
     }
+
     settingsList.forEach(function(settings) {
-      config.scripts.forEach(function(pathToGlob) {
+      var globPath = function (pathToGlob) {
         glob.sync(pathToGlob).forEach(function(path) {
-          if (S(path).endsWith('.json')) {
+          if (fs.lstatSync(path).isDirectory() && path !== pathToGlob) {
+            globPath(path + "/*");
+          } else if (S(path).endsWith('.json')) {
             parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, settings.browserOptions, settings.driverOptions, listenerOptions, dataSources);
           }
         });
-      });
+      };
+
+      config.scripts.forEach(globPath);
     });
   });
 }
